@@ -3,10 +3,10 @@
 import logging
 import argparse
 import urllib.request
-# urllib.request.urlopen(url[, data][, timeout])
 import json
 import re
 import sys
+from collections import defaultdict
 
 # We will add build information after
 ensembl_url = "rest.ensembl.org"
@@ -106,6 +106,42 @@ def variants_in_region(region):
     return res
 
 
+def variant_amino_changes(variant):
+    """Retrieves variant consequences.
+
+    :param variant: A JSON describing the variation.
+
+    """
+
+    # The region
+    region = "{chrom}:{start}-{end}:{strand}".format(
+        chrom=variant["seq_region_name"],
+        start=variant["start"],
+        end=variant["end"],
+        strand=variant["strand"])
+
+    url = ("http://{}/vep/homo_sapiens/region/{}/{}?"
+           "content-type=application/json")
+
+    # The amino changes
+    amino_changes = set()
+
+    # Cycling through the alternative alleles (the first allele is reference)
+    for allele in variant["alt_alleles"][1:]:
+        url = url.format(ensembl_url, region, allele)
+        logging.debug("Queried url: " + url)
+
+        with urllib.request.urlopen(url) as stream:
+            results = json.loads(stream.read().decode("utf-8"))
+
+            for res in results:
+                for cons in res["transcript_consequences"]:
+                    if "amino_acids" in cons:
+                        amino_changes.add(cons["amino_acids"])
+
+    return amino_changes
+
+
 def main():
     global ensembl_url
 
@@ -116,12 +152,22 @@ def main():
     else:
         ensembl_url = ".".join((build, ensembl_url))
 
-    position = re.match("^[A-Z]([0-9]+)[A-Z]$", args.var)
-    if position is None or not position.group(1):
+    matched = re.match("^([A-Z])([0-9]+)([A-Z])$", args.var)
+    if matched is None:
         raise Exception("Invalid format for mutation notation: {}".format(
             args.var
         ))
-    position = position.group(1)
+
+    # Getting matched position and aminos
+    position = matched.group(2)
+    amino_ref = matched.group(1)
+    amino_alt = matched.group(3)
+
+    # Checking we have position and aminos
+    if not position or not amino_ref or not amino_alt:
+        raise Exception("Invalid format for mutation notation: {}".format(
+            args.var
+        ))
 
     # Get potential genomic mappings.
     mappings = ensembl_protein_to_genomic(args.gene, position)
@@ -132,8 +178,13 @@ def main():
         "chromosome",
         "position",
         "strand",
-        "alleles"
+        "alleles",
+        "amino_changes"
     )))
+
+    # Amino acid problem
+    has_amino_problem = False
+    amino_problem = defaultdict(set)
 
     for mapping in mappings:
         # Build a region string.
@@ -151,13 +202,38 @@ def main():
 
         variants = variants_in_region(region)
         for var in variants:
-            print("\t".join([str(i) for i in (
+            # Fetching the variant's consequences
+            amino_changes = variant_amino_changes(var)
+
+            for amino_change in amino_changes:
+                var_amino_ref, var_amino_alt = amino_change.split("/")
+
+                if var_amino_ref != amino_ref and var_amino_alt != amino_alt:
+                    has_amino_problem = True
+                    amino_problem[var["id"]].add(amino_change)
+
+            # Printing the results
+            print(
                 var["id"],
                 var["seq_region_name"],
                 var["start"],
                 var["strand"],
-                "/".join(var["alt_alleles"]))]
-            ))
+                "/".join(var["alt_alleles"]),
+                ",".join(amino_changes),
+                sep="\t"
+            )
+
+    # Are there any amino problem?
+    if has_amino_problem:
+        for marker, problems in amino_problem.items():
+            logging.warning(
+                "variant {} doesn't have right amino change {} "
+                "instead of {}".format(
+                    marker,
+                    ",".join(problems),
+                    amino_ref + "/" + amino_alt
+                )
+            )
 
 
 def parse_args():
