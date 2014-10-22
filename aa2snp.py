@@ -126,8 +126,7 @@ def main():
     print("\t".join((
         "id",
         "chromosome",
-        "start",
-        "end",
+        "position",
         "strand",
         "alleles"
     )))
@@ -148,11 +147,11 @@ def main():
 
         variants = variants_in_region(region)
         for var in variants:
+            assert var["start"] == var["end"]
             print("\t".join([str(i) for i in (
                 var["id"],
                 var["seq_region_name"],
                 var["start"],
-                var["end"],
                 var["strand"],
                 "/".join(var["alt_alleles"]))]
             ))
