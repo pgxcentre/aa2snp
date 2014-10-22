@@ -6,6 +6,7 @@ import urllib.request
 # urllib.request.urlopen(url[, data][, timeout])
 import json
 import re
+import sys
 
 # We will add build information after
 ensembl_url = "rest.ensembl.org"
@@ -21,6 +22,9 @@ def ensembl_protein_to_genomic(protein, position):
 
     if not protein.startswith("ENSP"):
         protein = symbol_lookup(protein)
+        if protein is None:
+            sys.exit("You can fix this problem by providing an Ensembl protein ID "
+                "instead of a gene symbol.")
 
     region = "..".join((position, position))
 
@@ -147,7 +151,6 @@ def main():
 
         variants = variants_in_region(region)
         for var in variants:
-            assert var["start"] == var["end"]
             print("\t".join([str(i) for i in (
                 var["id"],
                 var["seq_region_name"],
@@ -183,7 +186,7 @@ def parse_args():
     )
     
     parser.add_argument("-b", "--build",
-        help="The genomic build (default: GRCh37.",
+        help="The genomic build (default: %(default)s).",
         type=str,
         default="GRCh37",
         choices=("GRCh37", "GRCh38")
