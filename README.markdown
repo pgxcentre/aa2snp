@@ -12,8 +12,8 @@ Running the script with ``--help`` should provide enough information to use it.
 Here is an example:
 
 ```console
-$ python3 aa2snp.py -g ENSP00000369497 -v A101A
-id	chromosome	position	strand	alleles
-rs397507301	13	32893449	1	C/A
+$ python3 aa2snp.py -g ENSP00000369497 -v F101L
+id	chromosome	position	strand	alleles	amino_changes
+rs397507301	13	32893449	1	C/A	F/L
 ```
 
