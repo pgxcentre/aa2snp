@@ -73,7 +73,9 @@ def symbol_lookup(symbol):
     # Look over transcripts.
     prot_id = None
     for transcript in res["Transcript"]:
-        cur_prot_id = transcript["Translation"]["id"]
+        if transcript.get("Translation") is None:
+            continue # Transcript is not translated.
+        cur_prot_id = transcript["Translation"].get("id")
         if prot_id is None:
             prot_id = cur_prot_id
         elif prot_id != cur_prot_id:
