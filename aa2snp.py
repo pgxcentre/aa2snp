@@ -113,6 +113,10 @@ def variant_amino_changes(variant):
 
     """
 
+    # If variant is not missense, we return an empty list.
+    if variant.get("consequence_type") != "missense_variant":
+        return []
+
     # The region
     region = "{chrom}:{start}-{end}:{strand}".format(
         chrom=variant["seq_region_name"],
@@ -208,6 +212,9 @@ def main():
         for var in variants:
             # Fetching the variant's consequences
             amino_changes = variant_amino_changes(var)
+            if len(amino_changes) == 0:
+                # Mutation is not missense, we continue.
+                continue
 
             for amino_change in amino_changes:
                 var_amino_ref, var_amino_alt = amino_change.split("/")
