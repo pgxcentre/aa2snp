@@ -174,7 +174,7 @@ def main():
 
     # Query these mappings for SNPs.
     print("\t".join((
-        "id",
+        "#id",
         "chromosome",
         "position",
         "strand",
@@ -199,6 +199,10 @@ def main():
         region = "{}:{}-{}:{}".format(
             chrom, start, end, strand
         )
+        # User can request that we print the genomic region corresponding
+        # to the amino acid.
+        if args.print_region:
+            print("#Genomic mapping: {}".format(region))
 
         variants = variants_in_region(region)
         for var in variants:
@@ -266,6 +270,12 @@ def parse_args():
         type=str,
         default="GRCh37",
         choices=("GRCh37", "GRCh38")
+    )
+
+    parser.add_argument("-pr", "--print_region",
+        help=("Print the genomic region corresponding to the given amino acid "
+              "change."),
+        action="store_true",
     )
 
     return parser.parse_args()
